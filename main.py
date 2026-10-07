@@ -1,18 +1,18 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse, Response
+from pydantic import BaseModel, Field
 
 
 app = FastAPI(
     title="Task API",
-    description="A simple in-memory CRUD API built with FastAPI.",
-    version="1.0.0"
+    description="A small in-memory CRUD API for managing tasks.",
+    version="1.0.0",
 )
 
 
 # -------------------------
-# Error Handling
+# Error handling
 # -------------------------
 
 @app.exception_handler(RequestValidationError)
@@ -27,21 +27,21 @@ async def validation_exception_handler(
 
 
 # -------------------------
-# Data Models
+# Data models
 # -------------------------
 
 class TaskCreate(BaseModel):
-    title: str
-    done: bool = False
+    title: str = Field(..., description="Task title")
+    done: bool = Field(False, description="Whether the task is completed")
 
 
 class TaskUpdate(BaseModel):
-    title: str | None = None
-    done: bool | None = None
+    title: str | None = Field(None, description="Updated task title")
+    done: bool | None = Field(None, description="Updated completion status")
 
 
 # -------------------------
-# In-memory data
+# In-memory task storage
 # -------------------------
 
 tasks = [
@@ -59,7 +59,7 @@ tasks = [
 
 
 # -------------------------
-# Root Route
+# GET /
 # -------------------------
 
 @app.get(
@@ -76,7 +76,7 @@ def root():
 
 
 # -------------------------
-# Health Route
+# GET /health
 # -------------------------
 
 @app.get(
@@ -85,11 +85,13 @@ def root():
     description="Checks whether the API is running."
 )
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok"
+    }
 
 
 # -------------------------
-# Get All Tasks
+# GET /tasks
 # -------------------------
 
 @app.get(
@@ -102,7 +104,7 @@ def get_tasks():
 
 
 # -------------------------
-# Get One Task
+# GET /tasks/{id}
 # -------------------------
 
 @app.get(
@@ -111,18 +113,21 @@ def get_tasks():
     description="Returns a single task by its ID."
 )
 def get_task(task_id: int):
+
     for task in tasks:
         if task["id"] == task_id:
             return task
 
     return JSONResponse(
         status_code=404,
-        content={"error": f"Task {task_id} not found"}
+        content={
+            "error": f"Task {task_id} not found"
+        }
     )
 
 
 # -------------------------
-# Create Task
+# POST /tasks
 # -------------------------
 
 @app.post(
@@ -136,10 +141,15 @@ def create_task(task: TaskCreate):
     if not task.title.strip():
         return JSONResponse(
             status_code=400,
-            content={"error": "Title cannot be empty"}
+            content={
+                "error": "Title cannot be empty"
+            }
         )
 
-    new_id = max([task["id"] for task in tasks], default=0) + 1
+    new_id = max(
+        [item["id"] for item in tasks],
+        default=0
+    ) + 1
 
     new_task = {
         "id": new_id,
@@ -153,7 +163,7 @@ def create_task(task: TaskCreate):
 
 
 # -------------------------
-# Update Task
+# PUT /tasks/{id}
 # -------------------------
 
 @app.put(
@@ -161,7 +171,10 @@ def create_task(task: TaskCreate):
     summary="Update a task",
     description="Updates an existing task by its ID."
 )
-def update_task(task_id: int, task: TaskUpdate):
+def update_task(
+    task_id: int,
+    task: TaskUpdate
+):
 
     existing_task = None
 
@@ -173,13 +186,17 @@ def update_task(task_id: int, task: TaskUpdate):
     if existing_task is None:
         return JSONResponse(
             status_code=404,
-            content={"error": f"Task {task_id} not found"}
+            content={
+                "error": f"Task {task_id} not found"
+            }
         )
 
     if task.title is None and task.done is None:
         return JSONResponse(
             status_code=400,
-            content={"error": "At least one field is required"}
+            content={
+                "error": "At least one field is required"
+            }
         )
 
     if task.title is not None:
@@ -187,7 +204,9 @@ def update_task(task_id: int, task: TaskUpdate):
         if not task.title.strip():
             return JSONResponse(
                 status_code=400,
-                content={"error": "Title cannot be empty"}
+                content={
+                    "error": "Title cannot be empty"
+                }
             )
 
         existing_task["title"] = task.title
@@ -199,7 +218,7 @@ def update_task(task_id: int, task: TaskUpdate):
 
 
 # -------------------------
-# Delete Task
+# DELETE /tasks/{id}
 # -------------------------
 
 @app.delete(
@@ -215,9 +234,11 @@ def delete_task(task_id: int):
         if task["id"] == task_id:
             tasks.pop(index)
 
-            return None
+            return Response(status_code=204)
 
     return JSONResponse(
         status_code=404,
-        content={"error": f"Task {task_id} not found"}
+        content={
+            "error": f"Task {task_id} not found"
+        }
     )
