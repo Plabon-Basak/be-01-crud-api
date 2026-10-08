@@ -2,13 +2,13 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
-from database import initialize_database
+from database import initialize_database, get_connection
 
 initialize_database()
 
 app = FastAPI(
     title="Task API",
-    description="A small in-memory CRUD API for managing tasks.",
+    description="A small SQLite CRUD API for managing tasks.",
     version="1.0.0",
 )
 
@@ -40,24 +40,6 @@ class TaskCreate(BaseModel):
 class TaskUpdate(BaseModel):
     title: str | None = Field(None, description="Updated task title")
     done: bool | None = Field(None, description="Updated completion status")
-
-
-# -------------------------
-# In-memory task storage
-# -------------------------
-
-tasks = [
-    {
-        "id": 1,
-        "title": "Learn FastAPI",
-        "done": False
-    },
-    {
-        "id": 2,
-        "title": "Build CRUD API",
-        "done": False
-    }
-]
 
 
 # -------------------------
@@ -99,10 +81,19 @@ def health():
 @app.get(
     "/tasks",
     summary="List all tasks",
-    description="Returns all tasks currently stored in memory."
+    description="Returns all tasks stored in the SQLite database."
 )
 def get_tasks():
-    return tasks
+
+    connection = get_connection()
+
+    tasks = connection.execute(
+        "SELECT id, title, done FROM tasks"
+    ).fetchall()
+
+    connection.close()
+
+    return [dict(task) for task in tasks]
 
 
 # -------------------------
@@ -116,9 +107,17 @@ def get_tasks():
 )
 def get_task(task_id: int):
 
-    for task in tasks:
-        if task["id"] == task_id:
-            return task
+    connection = get_connection()
+
+    task = connection.execute(
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (task_id,)
+    ).fetchone()
+
+    connection.close()
+
+    if task is not None:
+        return dict(task)
 
     return JSONResponse(
         status_code=404,
@@ -181,6 +180,7 @@ def update_task(
     existing_task = None
 
     for item in tasks:
+
         if item["id"] == task_id:
             existing_task = item
             break
@@ -234,6 +234,7 @@ def delete_task(task_id: int):
     for index, task in enumerate(tasks):
 
         if task["id"] == task_id:
+
             tasks.pop(index)
 
             return Response(status_code=204)
