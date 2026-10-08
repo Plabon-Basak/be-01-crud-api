@@ -147,20 +147,30 @@ def create_task(task: TaskCreate):
             }
         )
 
-    new_id = max(
-        [item["id"] for item in tasks],
-        default=0
-    ) + 1
+    connection = get_connection()
 
-    new_task = {
-        "id": new_id,
-        "title": task.title,
-        "done": task.done
-    }
+    cursor = connection.execute(
+        """
+        INSERT INTO tasks (title, done)
+        VALUES (?, ?)
+        """,
+        (task.title, task.done)
+    )
 
-    tasks.append(new_task)
+    connection.commit()
 
-    return new_task
+    new_task = connection.execute(
+        """
+        SELECT id, title, done
+        FROM tasks
+        WHERE id = ?
+        """,
+        (cursor.lastrowid,)
+    ).fetchone()
+
+    connection.close()
+
+    return dict(new_task)
 
 
 # -------------------------
@@ -177,22 +187,6 @@ def update_task(
     task: TaskUpdate
 ):
 
-    existing_task = None
-
-    for item in tasks:
-
-        if item["id"] == task_id:
-            existing_task = item
-            break
-
-    if existing_task is None:
-        return JSONResponse(
-            status_code=404,
-            content={
-                "error": f"Task {task_id} not found"
-            }
-        )
-
     if task.title is None and task.done is None:
         return JSONResponse(
             status_code=400,
@@ -201,23 +195,70 @@ def update_task(
             }
         )
 
-    if task.title is not None:
+    if task.title is not None and not task.title.strip():
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": "Title cannot be empty"
+            }
+        )
 
-        if not task.title.strip():
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "error": "Title cannot be empty"
-                }
-            )
+    connection = get_connection()
 
-        existing_task["title"] = task.title
+    existing_task = connection.execute(
+        """
+        SELECT id, title, done
+        FROM tasks
+        WHERE id = ?
+        """,
+        (task_id,)
+    ).fetchone()
 
-    if task.done is not None:
-        existing_task["done"] = task.done
+    if existing_task is None:
+        connection.close()
 
-    return existing_task
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": f"Task {task_id} not found"
+            }
+        )
 
+    new_title = (
+        task.title
+        if task.title is not None
+        else existing_task["title"]
+    )
+
+    new_done = (
+        task.done
+        if task.done is not None
+        else existing_task["done"]
+    )
+
+    connection.execute(
+        """
+        UPDATE tasks
+        SET title = ?, done = ?
+        WHERE id = ?
+        """,
+        (new_title, new_done, task_id)
+    )
+
+    connection.commit()
+
+    updated_task = connection.execute(
+        """
+        SELECT id, title, done
+        FROM tasks
+        WHERE id = ?
+        """,
+        (task_id,)
+    ).fetchone()
+
+    connection.close()
+
+    return dict(updated_task)
 
 # -------------------------
 # DELETE /tasks/{id}
@@ -231,17 +272,36 @@ def update_task(
 )
 def delete_task(task_id: int):
 
-    for index, task in enumerate(tasks):
+    connection = get_connection()
 
-        if task["id"] == task_id:
+    existing_task = connection.execute(
+        """
+        SELECT id
+        FROM tasks
+        WHERE id = ?
+        """,
+        (task_id,)
+    ).fetchone()
 
-            tasks.pop(index)
+    if existing_task is None:
+        connection.close()
 
-            return Response(status_code=204)
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": f"Task {task_id} not found"
+            }
+        )
 
-    return JSONResponse(
-        status_code=404,
-        content={
-            "error": f"Task {task_id} not found"
-        }
+    connection.execute(
+        """
+        DELETE FROM tasks
+        WHERE id = ?
+        """,
+        (task_id,)
     )
+
+    connection.commit()
+    connection.close()
+
+    return Response(status_code=204)
