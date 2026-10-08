@@ -2,7 +2,9 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
+from database import initialize_database
 
+initialize_database()
 
 app = FastAPI(
     title="Task API",
