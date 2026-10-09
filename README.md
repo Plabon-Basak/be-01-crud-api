@@ -1,193 +1,58 @@
-# Task API
+## BE-04: Containerize Your Stack
 
-A simple CRUD API built with Python and FastAPI for the FlyRank Backend AI Engineering BE-01 assignment.
+### Overview
 
-## Features
+This project containerizes the FastAPI Task API and PostgreSQL database using Docker Compose.
 
-* Create tasks
-* Read all tasks
-* Read a single task
-* Update tasks
-* Delete tasks
-* SQLite database persistence
-* Automatic database and table creation
-* Input validation
-* Correct HTTP status codes
-* Interactive Swagger UI
-* Persistent data across server restarts
+### Tech Stack
 
-## Tech Stack
-
-* Python 3
+* Python
 * FastAPI
-* Uvicorn
-* Pydantic
-* SQLite
-* Swagger UI / OpenAPI
-* Git and GitHub
+* PostgreSQL
+* Psycopg
+* Docker
+* Docker Compose
 
-## Installation
+### Architecture
 
-Clone the repository:
+The API uses a repository layer to access task data stored in PostgreSQL. The database connection is configured through environment variables in `.env`.
 
-```bash
-git clone https://github.com/Plabon-Basak/be-01-crud-api
-cd be-01-crud-api
-```
+The PostgreSQL database runs in a Docker container and stores its data in a persistent named volume.
 
-Create a virtual environment:
+**Layering:** The existing A2 service and route layers were kept unchanged, and the storage implementation was replaced with a PostgreSQL repository.
 
-```bash
-python -m venv .venv
-```
+*Keep the statement above only if your service and routes really remained unchanged.*
 
-Activate it on Windows:
+### Configuration
 
-```bash
-.venv\Scripts\activate
-```
+1. Copy `.env.example` to `.env`.
+2. Set the local database credentials and connection string.
+3. Do not commit `.env` to version control.
 
-Install dependencies:
+### Run the Application
+
+Start the complete stack:
 
 ```bash
-pip install -r requirements.txt
+docker compose up --build
 ```
 
-## Run
+Open the interactive API documentation at `http://localhost:8000/docs`.
 
-Start the API:
+Stop the stack with:
 
 ```bash
-uvicorn main:app --reload
+docker compose down
 ```
 
-The API will be available at:
+### Persistence Verification
 
-```text
-http://localhost:8000
-```
+1. Created a task through the API.
+2. Verified the record in PostgreSQL.
+3. Stopped and removed the containers using `docker compose down`.
+4. Rebuilt and restarted the stack using `docker compose up --build -d`.
+5. Verified that the original record was still present through PostgreSQL and the API.
 
-Swagger UI:
+The database volume was retained throughout the test. The `docker compose down -v` command was not used.
 
-```text
-http://localhost:8000/docs
-```
-
-## Database
-
-This version of the API uses SQLite for persistent data storage.
-
-The database file is:
-
-```text
-tasks.db
-```
-
-The database and `tasks` table are created automatically when the application starts.
-
-### Tasks Table
-
-| Column  | Type    | Description            |
-| ------- | ------- | ---------------------- |
-| `id`    | INTEGER | Unique task ID         |
-| `title` | TEXT    | Task title             |
-| `done`  | BOOLEAN | Task completion status |
-
-If the `tasks` table is empty, the application inserts three example tasks automatically.
-
-## Endpoints
-
-| Method | Endpoint      | Description     | Success |
-| ------ | ------------- | --------------- | ------- |
-| GET    | `/`           | API information | 200     |
-| GET    | `/health`     | Health check    | 200     |
-| GET    | `/tasks`      | Get all tasks   | 200     |
-| GET    | `/tasks/{id}` | Get one task    | 200     |
-| POST   | `/tasks`      | Create a task   | 201     |
-| PUT    | `/tasks/{id}` | Update a task   | 200     |
-| DELETE | `/tasks/{id}` | Delete a task   | 204     |
-
-## Error Handling
-
-| Status | Meaning              |
-| ------ | -------------------- |
-| 400    | Invalid request data |
-| 404    | Task not found       |
-
-## Example Request
-
-Create a task:
-
-```bash
-curl -i -X POST http://localhost:8000/tasks -H "Content-Type: application/json" -d "{\"title\":\"Buy milk\"}"
-```
-
-Example response:
-
-```json
-{
-  "id": 4,
-  "title": "Buy milk",
-  "done": false
-}
-```
-
-## Example SQL Query
-
-The SQLite database can be inspected using a SQLite database viewer such as DB Browser for SQLite.
-
-Example query:
-
-```sql
-SELECT * FROM tasks;
-```
-
-Other useful queries:
-
-```sql
-SELECT * FROM tasks WHERE done = 1;
-```
-
-```sql
-SELECT COUNT(*) FROM tasks;
-```
-
-## Swagger UI
-
-The API documentation is available through FastAPI's built-in Swagger UI.
-
-![Swagger UI](screenshots/swagger.png)
-
-## Database Screenshot
-
-The SQLite database can be viewed using a SQLite database viewer.
-
-Add your database screenshot here:
-
-![SQLite Database](screenshots/database.png)
-
-## Data Persistence
-
-Unlike the original in-memory version, this version stores tasks in SQLite.
-
-Therefore, tasks remain available after the API server is stopped and restarted.
-
-The `tasks.db` file is excluded from Git using `.gitignore` because it is generated locally by the application.
-
-## Project Structure
-
-```text
-BE-01-crud-api/
-├── .gitignore
-├── database.py
-├── main.py
-├── requirements.txt
-├── README.md
-└── screenshots/
-    ├── swagger.png
-    └── database.png
-```
-
-## Assignment
-
-FlyRank Backend AI Engineering — BE-01: Build your first CRUD API with SQLite database persistence.
+*Update this section after completing the test and include screenshots as evidence.*
